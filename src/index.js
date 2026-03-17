@@ -34,7 +34,19 @@ let topicQueue, briefQueue, postQueue, scheduleQueue, metricsQueue;
 
 function initQueues() {
   try {
-    redisConnection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+    redisConnection = new IORedis(REDIS_URL, {
+      maxRetriesPerRequest: null,
+      retryStrategy: (times) => {
+        if (times > 3) return null; // stop retrying after 3 attempts
+        return Math.min(times * 500, 2000);
+      },
+      lazyConnect: true
+    });
+
+    redisConnection.on('error', (err) => {
+      console.error('[REDIS] Connection error:', err.message);
+    });
+
     const opts = { connection: redisConnection };
 
     topicQueue = new Queue('topic_queue', opts);
@@ -456,11 +468,17 @@ async function start() {
   ╚══════════════════════════════════════════════╝
   `);
 
-  const queuesOk = initQueues();
-  if (queuesOk) {
-    initWorkers();
-    initScheduler();
-  } else {
+  let queuesOk = false;
+  try {
+    queuesOk = initQueues();
+    if (queuesOk) {
+      initWorkers();
+      initScheduler();
+    } else {
+      console.warn('[RUNTIME] Running in API-only mode (no Redis)');
+    }
+  } catch (err) {
+    console.error('[RUNTIME] Queue/Worker init error:', err.message);
     console.warn('[RUNTIME] Running in API-only mode (no Redis)');
   }
 
@@ -471,6 +489,14 @@ async function start() {
     console.log(`[RUNTIME] Redis: ${REDIS_URL}`);
   });
 }
+
+process.on('unhandledRejection', (err) => {
+  console.error('[RUNTIME] Unhandled rejection:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[RUNTIME] Uncaught exception:', err.message);
+});
 
 start().catch(err => {
   console.error('[RUNTIME] Fatal:', err.message);
