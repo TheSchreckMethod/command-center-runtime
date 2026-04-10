@@ -8,13 +8,20 @@ const PORT = process.env.PORT || 3002;
 // ============================================================
 // SUPABASE — defaults baked in (RLS disabled on all media tables)
 // ============================================================
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set');
+}
+
 const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://juuisrycwhietlnizudj.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1dWlzcnljd2hpZXRsbml6dWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MDMyMDksImV4cCI6MjA4Nzk3OTIwOX0.dhH1NhPupXvtXtl35cXWBHQGj-SPAehQ9kLuMd9jF34',
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }
 );
 
-const WORKSPACE_ID = process.env.DEFAULT_WORKSPACE_ID || 'a98c57a2-20b8-49e4-a2e0-27d26ddccadd';
+if (!process.env.DEFAULT_WORKSPACE_ID) {
+  throw new Error('DEFAULT_WORKSPACE_ID must be set');
+}
+const WORKSPACE_ID = process.env.DEFAULT_WORKSPACE_ID;
 
 // ============================================================
 // OPENAI HELPER
